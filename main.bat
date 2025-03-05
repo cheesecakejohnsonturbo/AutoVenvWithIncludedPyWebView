@@ -1,5 +1,6 @@
 @echo off
 setlocal
-call autovenv\menu.bat
+cd autovenv
+call menu.bat
 endlocal
 exit /0
