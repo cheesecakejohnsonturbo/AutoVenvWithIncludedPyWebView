@@ -1,5 +1,5 @@
 @echo off
 setlocal
-call ~%dp0autovenv\menu.bat
+call autovenv\menu.bat
 endlocal
 exit /0
