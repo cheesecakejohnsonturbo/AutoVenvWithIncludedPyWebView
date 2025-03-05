@@ -112,7 +112,7 @@ call local_python.bat
 goto :menu_index
 ::Show python version
 :python_version
- %venv_python% --version
+%PYTHON% --version
  pause
  goto :menu_index
  ::end 
