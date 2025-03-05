@@ -1,0 +1,473 @@
+---------------------------------------- 
+Filename: code_consolidate.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+setlocal enabledelayedexpansion
+:: --- Header ---
+:: File: code_consolidate.bat
+:: Description: A tool to consolidate all .bat files, by alphabetic order, in a .txt file in order to review it in a single reading but also to consolidate code into a single file which must be edited to prevent duplicate entries, :checkpoints and functions.
+:: Version: 0.005 (Fixed the code and tested functions and it should work)
+:: Author: Cheesecake Johnson
+:: Date: 2025-Q1
+:: Dependencies: None
+:: --- Usage Example ---
+:: Self-contained but can also be invoked via the menus of our main project as a function.
+:: --- Initialization ---
+:: Consolidation will adjoin all code together into a .txt file. You shouldn't rename it to .bat before reviewing duplicate code first and consolidating it manually
+:: --- Configuration ---
+set "output_dir=%~dp0bat_consolidate"  :: Output directory
+set "output_file=%output_dir%\batch_code_summary.txt"
+set "archive_dir=%output_dir%\archive" :: Archive subdirectory
+
+:: --- Create Directories ---
+if not exist "%output_dir%" mkdir "%output_dir%"
+if not exist "%archive_dir%" mkdir "%archive_dir%"
+
+:: --- Archive Existing Summary File (if it exists) ---
+if exist "%output_file%" (
+    call :archive_file "%output_file%"
+)
+
+:: --- Main Menu ---
+:main_menu
+cls
+echo Batch Code Summary Generator
+echo.
+echo 1. Export with date and filename
+echo 2. Consolidate code only (no date or filename)
+echo 3. Exit
+echo.
+choice /c 123 /n /m "Choose an option: "
+
+if errorlevel 3 exit /b 0
+if errorlevel 2 goto :consolidate_only
+if errorlevel 1 goto :export_with_details
+
+:export_with_details
+:: Get the current date
+for /f "tokens=1-6 delims=/ " %%a in ('date /t') do (
+    set "mydate=%%c-%%a-%%b"
+)
+
+:: Clear the output file (it's already archived)
+if exist "%output_file%" del "%output_file%"
+
+:: Loop through all .bat files in the current directory
+for %%a in (*.bat) do (
+    echo Processing file: %%a
+
+    :: Append filename and date to the output file
+    echo ---------------------------------------- >> "%output_file%"
+    echo Filename: %%a >> "%output_file%"
+    echo Date: %mydate% >> "%output_file%"
+    echo ---------------------------------------- >> "%output_file%"
+
+    :: Append the content of the .bat file to the output file
+    type "%%a" >> "%output_file%"
+
+    :: Add an extra separator
+    echo. >> "%output_file%"
+    echo. >> "%output_file%"
+)
+goto :finish
+
+:consolidate_only
+:: Clear the output file (it's already archived)
+if exist "%output_file%" del "%output_file%"
+
+:: Loop through all .bat files in the current directory
+for %%a in (*.bat) do (
+    echo Processing file: %%a
+
+    :: Append the content of the .bat file to the output file (no header)
+    type "%%a" >> "%output_file%"
+
+    :: Add an extra separator
+    echo. >> "%output_file%"
+    echo. >> "%output_file%"
+)
+goto :finish
+
+
+:finish
+echo Summary created: %output_file%
+endlocal
+pause
+exit /b 0
+
+:: --- Subroutines ---
+
+:archive_file
+set "file_to_archive=%~1"
+set "base_name=%~n1"
+set "ext=%~x1"
+set "backup_num=1"
+
+:find_backup_name
+set "padded_num=00000000%backup_num%"
+set "padded_num=!padded_num:~-8!"
+set "backup_file=%archive_dir%\%base_name%.!padded_num!%ext%"
+
+if exist "!backup_file!" (
+    set /a backup_num+=1
+    goto :find_backup_name
+)
+
+echo Archiving "%file_to_archive%" to "!backup_file!"
+move "%file_to_archive%" "!backup_file!" >nul 2>&1
+if errorlevel 1 (
+    echo Error: Could not archive %file_to_archive% to !backup_file!
+    pause
+    exit /b 1
+)
+exit /b 0 
+ 
+---------------------------------------- 
+Filename: launch.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+setlocal
+set PYTHON=venv\Scripts\python.exe
+:run_webui
+%PYTHON% run_webui.py %*
+endlocal
+echo keep this window open but press a key to exit.
+pause >nul
+exit /1 
+ 
+---------------------------------------- 
+Filename: local_python.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+setlocal enabledelayedexpansion
+set "venv_path=%~dp0\venv\Scripts\"
+set "activate_script=%venv_path%activate.bat"
+set "deactivate_script=%venv_path%deactivate.bat"
+set "venv_python=%venv_path%python.exe"
+set "venv_pip=%venv_path%pip.exe"
+
+if not exist "%venv_path%" (
+    echo Venv path missing
+    pause
+    exit /b 1
+)
+if not exist "%activate_script%" (
+    echo It broke, Brams! Activate script not found.
+    pause
+    exit /b 1
+)
+if not exist "%deactivate_script%" (
+    echo It broke, Brams! Deactivate script not found.
+    pause
+    exit /b 1
+)
+
+:py_activate
+call "%activate_script%"
+
+:loop_python_commands
+echo Allowed Commands:
+echo   - python -m pip install -r requirements.txt (Install requirements)
+echo   - python --version (Show Python version)
+echo   - python -m pip -h (Display pip help)
+echo   - exit (Return to the main menu)
+echo.
+set /p "python_command=>>> "
+
+if /i "!python_command!"=="exit" goto :end_loop_python_commands
+
+if /i "!python_command:~0,6!"=="python" (
+    "%venv_python%" !python_command:~7!
+    if errorlevel 1 (
+        echo Error executing python command.
+    )
+    pause
+) else if /i "!python_command:~0,3!"=="pip" (
+    "%venv_pip%" !python_command:~4!
+    if errorlevel 1 (
+        echo Error executing pip command.
+    )
+    pause
+) else (
+    echo Invalid Command
+    pause
+)
+
+goto :loop_python_commands
+
+:end_loop_python_commands
+
+:py_deactivate
+call "%deactivate_script%"
+:exit
+pause
+endlocal
+exit /b 0 
+ 
+---------------------------------------- 
+Filename: menu.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+setlocal
+set PYTHON=venv\Scripts\python.exe
+
+::Main features catalogue
+:menu_index
+cls
+echo Main Menu
+echo -----------------
+echo 1. Quick Launch PyWebViewViewport
+echo 2. Go to Setup
+echo 3. Go to Python menu
+echo 4. Go to PyWebView menu
+echo 5. Quit
+choice /c 12345 /m "Choose an option: "
+if errorlevel 5 goto :successful_exit
+if errorlevel 4 goto :webview_menu
+if errorlevel 3 goto :python_menu
+if errorlevel 2 goto :setup_menu
+if errorlevel 1 goto :run_webui_viewport
+
+::Webview git features catalogue
+:webview_menu
+cls
+echo PyWebView Menu
+echo -----------------
+echo 1. Git Clone PyWebView repository (only to review its code)
+echo 2. Return
+
+choice /c 12 /m "Choose an option: "
+if errorlevel 2 goto :menu_index
+if errorlevel 1 goto :run_pywebview_git_clone
+
+::Python features catalogue
+:python_menu
+cls
+echo Python Menu
+echo -----------------
+echo 1. Run arbitrary python commands (careful)
+echo 2. Show python version
+echo 3. Upgrade PIP
+echo 4. Install requirements.txt file (locally)
+echo 5. Return
+choice /c 12345 /m "Choose an option: "
+if errorlevel 5 goto :menu_index
+if errorlevel 4 goto :run_install_requirements
+if errorlevel 3 goto :python_upgrade_pip
+if errorlevel 2 goto :python_version
+if errorlevel 1 goto :local_python
+
+::Setup index
+:setup_menu
+cls
+echo PyWebView Menu
+echo ------------------
+echo 1. Install VENV
+echo 2. PIP Install PywebView (Necessary to have a local viewport)
+echo 3. View Readme.md (current project)
+echo 4. View License (Also current project)
+echo 5. Exit
+choice /c 12345 /m "Choose an option: "
+if errorlevel 5 goto :menu_index
+if errorlevel 4 goto :view_license
+if errorlevel 3 goto :view_readme_md
+if errorlevel 2 goto :pip_install_webview
+if errorlevel 1 goto :setup_venv
+::Dictionary of functions below
+::To clone (optional) the pywebview git
+:run_pywebview_git_clone
+call pywebview_git_clone.bat
+goto :menu_index
+::Run viewport on custom run_webui.py
+:run_webui_viewport
+%PYTHON% run_webui.py %*
+echo Keep this window open, but press a key to exit.
+pause >nul
+goto :menu_index
+::Not implemented::License viewer
+:view_readme_md
+::%PYTHON% run_readme.py %*
+::echo Keep this window open, but press a key to exit.
+echo Not implemented yet
+pause >nul
+goto :menu_index
+::Not Implemented::Readme.md viewer
+:view_license
+::%PYTHON% run_license.py %*
+::echo Keep this window open, but press a key to exit.
+echo Not implemented yet
+pause >nul
+goto :menu_index
+::Python utilities::
+::Important
+:setup_venv
+call setup_venv.bat
+goto :menu_index
+::Install requirements
+:run_install_requirements
+%PYTHON% -m pip install -r requirements.txt %*
+echo Processed. Press a key to return or exit.
+pause >nul
+goto :menu_index
+::upgrade pip
+:python_upgrade_pip
+%PYTHON% -m pip install --upgrade pip
+echo Processed. Press a key to return or exit.
+pause >nul
+goto :menu_index
+::Freehand python console
+:local_python
+call local_python.bat
+goto :menu_index
+::Show python version
+:python_version
+ %venv_python% --version
+ pause
+ goto :menu_index
+ ::end 
+:successful_exit
+endlocal
+exit /b 1 
+ 
+---------------------------------------- 
+Filename: pywebview_git_clone.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+setlocal
+git clone https://github.com/r0x0r/pywebview
+endlocal 
+ 
+---------------------------------------- 
+Filename: py_menu.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+setlocal
+:menu
+cls
+echo.
+echo Main Menu
+echo.
+echo 1. Run localVENV.bat (Setup and Test Virtual Environment)
+echo 2. Run local_python.bat (Interactive Python Shell)
+echo 3. Exit
+echo.
+
+choice /c 123 /m "Choose an option: "
+
+if errorlevel 3 goto :exit_script
+if errorlevel 2 goto :run_local_python
+if errorlevel 1 goto :run_local_venv
+
+:run_local_venv
+call localVENV.bat
+goto :menu
+
+:run_local_python
+call local_python.bat
+goto :menu
+
+:exit_script
+endlocal
+exit /b 0 
+ 
+---------------------------------------- 
+Filename: setup_venv.bat 
+Date: -2025-03-05- 
+---------------------------------------- 
+@echo off
+SETLOCAL
+
+set "venv_path=%~dp0\venv\Scripts"
+set "activate_script=%venv_path%\activate.bat"
+set "deactivate_script=%venv_path%\deactivate.bat"
+set "venv_python=%venv_path%\python.exe"
+
+:: Check if venv path exists
+if not exist "%venv_path%" (
+    echo Venv path missing.
+    echo Press any key to proceed with venv installation, or close this window to abort.
+    pause >nul
+
+    echo Creating virtual environment...
+    "%USERPROFILE%\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv
+    if errorlevel 1 goto :venv_install_error
+    echo Virtual environment created successfully.
+)
+
+:: Activate virtual environment
+if not exist "%activate_script%" (
+    echo ERROR: Activate script not found at "%activate_script%". Venv installation may be incomplete.
+    pause
+    goto :error_exit
+)
+call "%activate_script%"
+if errorlevel 1 goto :venv_activate_error
+echo Virtual environment activated.
+
+:: Check Python in venv
+echo Checking Python in VENV...
+if not exist "%venv_python%" (
+    echo ERROR: Python executable not found in venv at "%venv_python%". Venv installation may be incomplete.
+    pause
+    goto :error_exit
+)
+"%venv_python%" -c "print('Python in venv is working')"
+if errorlevel 1 goto :venv_python_check_error
+echo Python check successful.
+
+echo Python version in VENV:
+"%venv_python%" --version
+if errorlevel 1 goto :venv_python_version_error
+
+:: Deactivate virtual environment
+if exist "%deactivate_script%" (
+    call "%deactivate_script%"
+    echo Virtual environment deactivated.
+) else (
+    echo WARNING: Deactivate script not found at "%deactivate_script%".  Deactivation skipped.
+)
+
+
+echo.
+echo Script completed successfully.
+pause
+goto :success_exit
+
+
+:venv_install_error
+echo ERROR: Failed to create virtual environment. Check Python 3.12 installation and permissions.
+pause
+goto :error_exit
+
+:venv_activate_error
+echo ERROR: Failed to activate virtual environment. Check "%activate_script%" exists and permissions.
+pause
+goto :error_exit
+
+:venv_python_check_error
+echo ERROR: Failed to run python in venv. Venv may be corrupted.
+pause
+goto :error_exit
+
+:venv_python_version_error
+echo ERROR: Failed to get python version from venv. Venv may be corrupted.
+pause
+goto :error_exit
+
+
+:error_exit
+echo Script failed with errors.
+exit /b 1
+
+:success_exit
+exit /b 0
+
+:ENDLOCAL
+ENDLOCAL 
+ 
