@@ -75,19 +75,14 @@ goto :menu_index
 echo Keep this window open, but press a key to exit.
 pause >nul
 goto :menu_index
-::Not implemented::License viewer
 :view_readme_md
-::%PYTHON% run_readme.py %*
-::echo Keep this window open, but press a key to exit.
-echo Not implemented yet
-pause >nul
+type "..\readme.md"
+pause
 goto :menu_index
-::Not Implemented::Readme.md viewer
+::Readme.md viewer
 :view_license
-::%PYTHON% run_license.py %*
-::echo Keep this window open, but press a key to exit.
-echo Not implemented yet
-pause >nul
+type "..\license"
+pause
 goto :menu_index
 ::Python utilities::
 ::Important
